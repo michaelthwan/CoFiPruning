@@ -1,25 +1,25 @@
 import logging
 import math
-from typing import Optional, Tuple, Union
-import os
-import torch
+from typing import Optional, Union
+
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.nn import functional as F
-from transformers.modeling_outputs import (BaseModelOutput,
-                                           BaseModelOutputWithPooling,
-                                           SequenceClassifierOutput)
+# from transformers.file_utils import hf_bucket_url, cached_path
+from transformers.file_utils import get_file_from_repo
+from transformers.utils.hub import cached_file
+from transformers.modeling_outputs import (BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput)
 from transformers.modeling_utils import (apply_chunking_to_forward,
-                                         find_pruneable_heads_and_indices,
-                                         prune_linear_layer)
+                                         find_pruneable_heads_and_indices)
 from transformers.models.bert.modeling_bert import (
     BertAttention, BertEmbeddings, BertEncoder, BertForQuestionAnswering,
     BertForSequenceClassification, BertLayer, BertModel, BertOutput,
     BertSelfAttention, BertSelfOutput, QuestionAnsweringModelOutput)
-# from transformers.file_utils import hf_bucket_url, cached_path
-from transformers.file_utils import get_file_from_repo
+
 from utils.cofi_utils import *
+
 logger = logging.getLogger(__name__)
+
 
 class CoFiLayerNorm(torch.nn.LayerNorm):
     def __init__(self, normalized_shape, eps: float = 1e-5, elementwise_affine: bool = True) -> None:
@@ -42,6 +42,7 @@ class CoFiLayerNorm(torch.nn.LayerNorm):
                 input, self.normalized_shape, self.weight, self.bias, self.eps)
         return output
 
+
 class CoFiBertForSequenceClassification(BertForSequenceClassification):
     def __init__(self, config):
         super().__init__(config)
@@ -61,14 +62,13 @@ class CoFiBertForSequenceClassification(BertForSequenceClassification):
             weights = torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"), map_location=torch.device("cpu"))
         else:
             archive_file = get_file_from_repo(pretrained_model_name_or_path, filename="pytorch_model.bin")
-            # resolved_archive_file = cached_path(archive_file)
+            # resolved_archive_file = cached_file(archive_file)
             resolved_archive_file = archive_file
             weights = torch.load(resolved_archive_file, map_location="cpu")
             # archive_file = hf_bucket_url(pretrained_model_name_or_path, filename="pytorch_model.bin")
             # resolved_archive_file = cached_path(archive_file)
             # weights = torch.load(resolved_archive_file, map_location="cpu")
 
-        
         # Convert old format to new format if needed from a PyTorch state_dict
         old_keys = []
         new_keys = []
@@ -89,7 +89,7 @@ class CoFiBertForSequenceClassification(BertForSequenceClassification):
             config.do_layer_distill = False
         else:
             config = kwargs["config"]
-        
+
         model = cls(config)
 
         load_pruned_model(model, weights)
@@ -129,12 +129,12 @@ class CoFiBertForSequenceClassification(BertForSequenceClassification):
             intermediate_z=intermediate_z,
             mlp_z=mlp_z,
             hidden_z=hidden_z
-        ) #! [32, 68, 768]
+        )  # ! [32, 68, 768]
 
         pooled_output = outputs[1]
 
         pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output) #! [32, 3]
+        logits = self.classifier(pooled_output)  # ! [32, 3]
 
         loss = None
         if labels is not None:
@@ -206,22 +206,22 @@ class CoFiBertModel(BertModel):
         self.embeddings = CoFiBertEmbeddings(config)
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        inputs_embeds=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        head_layer_z=None,
-        head_z=None,
-        intermediate_z=None,
-        mlp_z=None,
-        hidden_z=None
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            inputs_embeds=None,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            head_layer_z=None,
+            head_z=None,
+            intermediate_z=None,
+            mlp_z=None,
+            hidden_z=None
     ):
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -289,22 +289,22 @@ class CoFiBertEncoder(BertEncoder):
     def __init__(self, config):
         super().__init__(config)
         self.layer = nn.ModuleList([CoFiBertLayer(config)
-                                   for _ in range(config.num_hidden_layers)])
+                                    for _ in range(config.num_hidden_layers)])
 
     def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        output_attentions=False,
-        output_hidden_states=False,
-        return_dict=False,
-        head_z=None,
-        head_layer_z=None,
-        intermediate_z=None,
-        mlp_z=None,
-        hidden_z=None
+            self,
+            hidden_states,
+            attention_mask=None,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            output_attentions=False,
+            output_hidden_states=False,
+            return_dict=False,
+            head_z=None,
+            head_layer_z=None,
+            intermediate_z=None,
+            mlp_z=None,
+            hidden_z=None
     ):
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -343,15 +343,15 @@ class CoFiBertLayer(BertLayer):
         self.config = config
 
     def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        output_attentions=False,
-        head_z=None,
-        head_layer_z=None,
-        intermediate_z=None,
-        mlp_z=None,
-        hidden_z=None
+            self,
+            hidden_states,
+            attention_mask=None,
+            output_attentions=False,
+            head_z=None,
+            head_layer_z=None,
+            intermediate_z=None,
+            mlp_z=None,
+            hidden_z=None
     ):
         self_attention_outputs = self.attention(
             hidden_states,
@@ -375,7 +375,7 @@ class CoFiBertLayer(BertLayer):
             layer_output = apply_chunking_to_forward(
                 self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
             )
-        outputs = (layer_output,) + outputs + (attention_output, )
+        outputs = (layer_output,) + outputs + (attention_output,)
         return outputs
 
     def feed_forward_chunk(self, attention_output):
@@ -402,7 +402,7 @@ class CoFiBertAttention(BertAttention):
         heads, index = find_pruneable_heads_and_indices(
             heads, self.self.num_attention_heads, self.self.attention_head_size, self.pruned_heads
         )
-        
+
         # Prune linear layers
         if len(index) == 0:
             self.self.query = None
@@ -418,19 +418,19 @@ class CoFiBertAttention(BertAttention):
 
         # Update hyper params and store pruned heads
         self.self.num_attention_heads = self.self.num_attention_heads - \
-            len(heads)
+                                        len(heads)
         self.self.all_head_size = self.self.attention_head_size * \
-            self.self.num_attention_heads
+                                  self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        output_attentions=False,
-        head_z=None,
-        head_layer_z=None,
-        hidden_z=None
+            self,
+            hidden_states,
+            attention_mask=None,
+            output_attentions=False,
+            head_z=None,
+            head_layer_z=None,
+            hidden_z=None
     ):
         self_outputs = self.self(
             hidden_states,
@@ -503,7 +503,7 @@ class CoFiBertSelfAttention(BertSelfAttention):
             query_layer, key_layer.transpose(-1, -2))
 
         attention_scores = attention_scores / \
-            math.sqrt(self.attention_head_size)
+                           math.sqrt(self.attention_head_size)
 
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
@@ -597,10 +597,10 @@ class CoFiBertForQuestionAnswering(BertForQuestionAnswering):
         if os.path.exists(pretrained_model_name_or_path):
             weights = torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"), map_location=torch.device("cpu"))
         else:
-            archive_file = hf_bucket_url(pretrained_model_name_or_path, "pytorch_model.bin") 
+            archive_file = hf_bucket_url(pretrained_model_name_or_path, "pytorch_model.bin")
             resolved_archive_file = cached_path(archive_file)
             weights = torch.load(resolved_archive_file, map_location="cpu")
-        
+
         # Convert old format to new format if needed from a PyTorch state_dict
         old_keys = []
         new_keys = []
@@ -615,7 +615,7 @@ class CoFiBertForQuestionAnswering(BertForQuestionAnswering):
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
             weights[new_key] = weights.pop(old_key)
-        
+
         drop_weight_names = ["layer_transformation.weight", "layer_transformation.bias"]
         for name in drop_weight_names:
             if name in weights:
@@ -627,24 +627,24 @@ class CoFiBertForQuestionAnswering(BertForQuestionAnswering):
 
         load_pruned_model(model, weights)
         return model
-        
+
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        inputs_embeds=None,
-        start_positions=None,
-        end_positions=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        intermediate_z=None,
-        head_z=None,
-        mlp_z=None,
-        head_layer_z=None,
-        hidden_z=None
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            inputs_embeds=None,
+            start_positions=None,
+            end_positions=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            intermediate_z=None,
+            head_z=None,
+            mlp_z=None,
+            head_layer_z=None,
+            hidden_z=None
     ):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 

@@ -1,12 +1,10 @@
 import logging
-import os
 import sys
 from copy import deepcopy
 
-import torch
 import transformers
 from datasets import load_dataset, load_metric
-from transformers import (AutoConfig, AutoTokenizer, EvalPrediction,
+from transformers import (AutoTokenizer, EvalPrediction,
                           HfArgumentParser, PreTrainedTokenizerFast)
 from transformers import SquadDataTrainingArguments as DataTrainingArguments
 from transformers import TrainingArguments, default_data_collator, set_seed
@@ -15,16 +13,18 @@ from args import AdditionalArguments
 from models.l0_module import L0Module
 from models.model_args import ModelArguments
 from models.modeling_bert import CoFiBertForQuestionAnswering
-from trainer.trainer_qa import CoFiQuestionAnsweringTrainer
+from trainer.trainer_qa import CoFiQATrainer
 from utils.cofi_utils import *
 from utils.qa_utils import postprocess_qa_predictions
 from utils.utils import *
 
 logger = logging.getLogger(__name__)
 
+
 def main():
-    parser = HfArgumentParser(
-        (ModelArguments, DataTrainingArguments, TrainingArguments, AdditionalArguments))
+    print("sys.argv")
+    print(sys.argv)
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, AdditionalArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         model_args, data_args, training_args, additional_args = parser.parse_json_file(
             json_file=os.path.abspath(sys.argv[1]))
@@ -339,7 +339,7 @@ def main():
         return metric.compute(predictions=p.predictions, references=p.label_ids)
 
     # Initialize our Trainer
-    trainer = CoFiQuestionAnsweringTrainer(
+    trainer = CoFiQATrainer(
         model=model,
         args=training_args,
         additional_args=additional_args,

@@ -1,10 +1,13 @@
-import torch
 import os
+
+import torch
+from transformers import AutoConfig
 from transformers.modeling_utils import prune_linear_layer
-from transformers import AutoConfig, BertForSequenceClassification
-# from transformers.file_utils import hf_bucket_url, cached_path
 
 from utils.utils import calculate_parameters
+
+
+# from transformers.file_utils import hf_bucket_url, cached_path
 
 def edit_config(config, additional_args):
     config.transform_embedding = additional_args.transform_embedding

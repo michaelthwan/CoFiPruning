@@ -1,5 +1,4 @@
 # allows removing layers of heads and mlps
-import pdb
 
 import transformers
 
@@ -7,8 +6,6 @@ __version__ = transformers.__version__
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
-
-import torch
 
 from transformers.file_utils import ModelOutput
 
@@ -43,7 +40,7 @@ else:
 import torch
 from torch import nn
 from transformers.modeling_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from torch.nn import CrossEntropyLoss, MSELoss, BCEWithLogitsLoss
+from torch.nn import CrossEntropyLoss, MSELoss
 from transformers.modeling_outputs import SequenceClassifierOutput
 import math
 import logging

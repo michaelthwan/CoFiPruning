@@ -1,14 +1,12 @@
+import math
 import pdb
 
-from re import L
-from black import main
-import torch
-import math
 import numpy as np
+import torch
 import torch.nn.functional as F
+from torch.autograd import Variable
 from torch.nn.modules import Module
 from torch.nn.parameter import Parameter
-from torch.autograd import Variable
 from transformers.utils import logging
 
 limit_a, limit_b, epsilon = -.1, 1.1, 1e-6

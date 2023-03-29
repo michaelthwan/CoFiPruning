@@ -1,29 +1,24 @@
 import logging
-import os
+import random
 import sys
 import time
-import random
 from copy import deepcopy
 
 import datasets
 import numpy as np
-import torch
 import transformers
 from datasets import load_dataset, load_metric, DatasetDict
-from transformers import AutoConfig, AutoTokenizer, EvalPrediction, default_data_collator, DataCollatorWithPadding
-from transformers import (HfArgumentParser, TrainingArguments, PretrainedConfig,
-                          glue_output_modes, glue_tasks_num_labels, set_seed)
+from transformers import AutoTokenizer, EvalPrediction, default_data_collator, DataCollatorWithPadding
+from transformers import (HfArgumentParser, TrainingArguments, PretrainedConfig, set_seed)
 
 from args import AdditionalArguments, DataTrainingArguments
-from utils.cofi_utils import *
 from models.l0_module import L0Module
+from models.model_args import ModelArguments
 from models.modeling_bert import CoFiBertForSequenceClassification
 from models.modeling_roberta import CoFiRobertaForSequenceClassification
-from trainer.trainer import CoFiTrainer 
+from trainer.trainer import CoFiTrainer
+from utils.cofi_utils import *
 from utils.utils import *
-from models.model_args import ModelArguments
-
-import wandb
 
 task_to_keys = {
     "cola": ("sentence", None),
@@ -41,20 +36,20 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    parser = HfArgumentParser(
-        (ModelArguments, DataTrainingArguments, TrainingArguments, AdditionalArguments))
+    print("sys.argv")
+    print(sys.argv)
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, AdditionalArguments))
 
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args, additional_args = parser.parse_json_file(
-            json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, additional_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args, additional_args = parser.parse_args_into_dataclasses()
-    
+
     os.makedirs(training_args.output_dir, exist_ok=True)
 
-     # Setup logging
+    # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
@@ -76,39 +71,30 @@ def main():
     logger.info(f"Training/evaluation parameters {training_args}")
 
     # save args
-    torch.save(data_args, os.path.join(
-        training_args.output_dir, "data_args.bin"))
-    torch.save(model_args, os.path.join(
-        training_args.output_dir, "model_args.bin"))
-    torch.save(additional_args, os.path.join(
-        training_args.output_dir, "additional_args.bin"))
+    torch.save(data_args, os.path.join(training_args.output_dir, "data_args.bin"))
+    torch.save(model_args, os.path.join(training_args.output_dir, "model_args.bin"))
+    torch.save(additional_args, os.path.join(training_args.output_dir, "additional_args.bin"))
 
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
     # print all arguments
-    log_all_parameters(logger, model_args, data_args,
-                       training_args, additional_args)
+    log_all_parameters(logger, model_args, data_args, training_args, additional_args)
 
-    
-    t_name = None 
+    t_name = None
     if data_args.task_name is not None:
         # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(
-            "./glue.py", data_args.task_name.replace("-", ""), cache_dir=model_args.cache_dir)
+        raw_datasets = load_dataset("./glue.py", data_args.task_name.replace("-", ""), cache_dir=model_args.cache_dir)
         t_name = data_args.task_name
     elif data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(
-            data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir
-        )
+        raw_datasets = load_dataset(data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir)
         t_name = data_args.dataset_name
     else:
         # Loading a dataset from your local files.
         # CSV/JSON training and evaluation files are needed.
         t_name = data_args.t_name
-        data_files = {"train": data_args.train_file,
-                      "validation": data_args.validation_file}
+        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
 
         # Get the test dataset: you can provide your own CSV/JSON test file (see below)
         # when you use `do_predict` without specifying a GLUE benchmark task.
@@ -116,9 +102,7 @@ def main():
             if data_args.test_file is not None:
                 train_extension = data_args.train_file.split(".")[-1]
                 test_extension = data_args.test_file.split(".")[-1]
-                assert (
-                    test_extension == train_extension
-                ), "`test_file` should have the same extension (csv or json) as `train_file`."
+                assert (test_extension == train_extension), "`test_file` should have the same extension (csv or json) as `train_file`."
                 data_files["test"] = data_args.test_file
             else:
                 raise ValueError(
@@ -194,9 +178,9 @@ def main():
             additional_args.distillation_path,
             config=deepcopy(config)
         )
-        teacher_model.eval() #! inside has a cofibertmodel #! CofiBertForSequenceClassification
+        teacher_model.eval()  # ! inside has a cofibertmodel #! CofiBertForSequenceClassification
 
-    config.do_layer_distill = additional_args.do_layer_distill #! True
+    config.do_layer_distill = additional_args.do_layer_distill  # ! True
 
     model = Model.from_pretrained(
         model_args.model_name_or_path,
@@ -205,7 +189,7 @@ def main():
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
-    ) #! inside the function, we get the original struct  #! CofiBertForSequenceClassification
+    )  # ! inside the function, we get the original struct  #! CofiBertForSequenceClassification
 
     # initialize the layer transformation matrix to be an identity matrix
     if additional_args.do_layer_distill:
@@ -215,7 +199,7 @@ def main():
     logger.info(f"Model size: {calculate_parameters(model)}")
 
     zs = None
-    
+
     if additional_args.pretrained_pruned_model is not None:
         zs = load_zs(additional_args.pretrained_pruned_model)
         model = load_model(additional_args.pretrained_pruned_model, Model, zs)
@@ -253,9 +237,9 @@ def main():
     # Some models have set the order of the labels to use, so let's make sure we do use it.
     label_to_id = None
     if (
-        model.config.label2id != PretrainedConfig(num_labels=num_labels).label2id
-        and data_args.task_name is not None
-        and not is_regression
+            model.config.label2id != PretrainedConfig(num_labels=num_labels).label2id
+            and data_args.task_name is not None
+            and not is_regression
     ):
         # Some have all caps in their config, some don't.
         label_name_to_id = {k.lower(): v for k, v in model.config.label2id.items()}
@@ -286,9 +270,7 @@ def main():
 
     def preprocess_function(examples):
         # Tokenize the texts
-        args = (
-            (examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key])
-        )
+        args = ((examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key]))
         result = tokenizer(*args, padding=padding, max_length=max_seq_length, truncation=True)
 
         # Map labels to IDs (not necessary for GLUE tasks)
@@ -302,8 +284,8 @@ def main():
             batched=True,
             load_from_cache_file=not data_args.overwrite_cache,
             desc="Running tokenizer on dataset",
-        ) #! get dataset
-    
+        )  # ! get dataset
+
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
@@ -365,7 +347,6 @@ def main():
     logger.info(
         f"************* {len(eval_dataset)} Evaluation Examples Loaded *************")
 
-
     trainer = CoFiTrainer(
         model=model,
         args=training_args,
@@ -388,7 +369,51 @@ def main():
 if __name__ == "__main__":
     # wandb.init(project='Cofi')
     os.environ["WANDB_DISABLED"] = "true"
+
+    from pyinstrument import Profiler
+
+    profiler = Profiler()
+    profiler.start()
     t_start = time.time()
-    main()
+
+    args = ['--output_dir', '.\\out\\MNLI\\CoFi\\MNLI_sparsity0.95',
+            '--logging_steps', '100',
+            '--task_name', 'MNLI',
+            '--model_name_or_path', 'bert-base-uncased',
+            '--ex_name', 'MNLI_sparsity0.95',
+            '--do_train', '--do_eval',
+            '--max_seq_length', '128',
+            '--per_device_train_batch_size', '32',
+            '--per_device_eval_batch_size', '32',
+            '--learning_rate', '2e-5',
+            '--reg_learning_rate', '0.01',
+            '--num_train_epochs', '20',
+            '--overwrite_output_dir',
+            '--save_steps', '0',
+            '--eval_steps', '500',
+            '--evaluation_strategy', 'steps',
+            '--seed', '57',
+            '--pruning_type', 'structured_heads+structured_mlp+hidden+layer',
+            '--pretrained_pruned_model', 'None',
+            '--target_sparsity', '0.95',
+            '--freeze_embeddings',
+            '--do_distill',
+            '--do_layer_distill',
+            '--distillation_path', 'bert-base-uncased',
+            # '--distillation_path', '/mnt/lustre/sjtu/home/xc915/superb/CoFiPruning/teacher-model',
+            '--distill_ce_loss_alpha', '0.1',
+            '--distill_loss_alpha', '0.9',
+            '--distill_temp', '2',
+            '--scheduler_type', 'linear',
+            '--layer_distill_version', '4',
+            '--prepruning_finetune_epochs', '1'
+            ]
+    sys.argv[1:] = args
+    try:
+        main()
+    except Exception as e:
+        print(e)
     t_end = time.time()
+    profiler.stop()
+    profiler.print()
     logger.info(f"Training took {round(t_end - t_start, 2)} seconds.")

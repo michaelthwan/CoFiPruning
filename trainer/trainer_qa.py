@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import logging
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class CoFiQATrainer(CoFiTrainer):
     def __init__(self, *args, eval_examples=None, post_process_function=None, **kwargs):

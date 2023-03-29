@@ -1,33 +1,21 @@
 import inspect
-import os
-import pdb
-import random
 import sys
 import time
 
 import datasets
-import numpy as np
-import torch
-import transformers
 from datasets import load_dataset, load_metric
-from matplotlib import pyplot as plt
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.sampler import SequentialSampler
-from transformers import AutoTokenizer, EvalPrediction, GlueDataset
-from transformers import GlueDataTrainingArguments as DataTrainingArguments
-from transformers.data.data_collator import (DataCollator,
-                                             DataCollatorWithPadding,
-                                             default_data_collator)
+from transformers import AutoTokenizer
+from transformers.data.data_collator import (default_data_collator)
 from transformers.trainer_pt_utils import nested_concat, nested_numpify
 from transformers.trainer_utils import EvalPrediction
 
 from models.modeling_bert import (CoFiBertForQuestionAnswering,
                                   CoFiBertForSequenceClassification)
-from models.modeling_roberta import CoFiRobertaForSequenceClassification
 from utils.cofi_utils import *
 from utils.qa_utils import *
 from utils.utils import *
-
 
 task_to_keys = {
     "cola": ("sentence", None),
