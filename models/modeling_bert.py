@@ -16,7 +16,8 @@ from transformers.models.bert.modeling_bert import (
     BertAttention, BertEmbeddings, BertEncoder, BertForQuestionAnswering,
     BertForSequenceClassification, BertLayer, BertModel, BertOutput,
     BertSelfAttention, BertSelfOutput, QuestionAnsweringModelOutput)
-from transformers.file_utils import hf_bucket_url, cached_path
+# from transformers.file_utils import hf_bucket_url, cached_path
+from transformers.file_utils import get_file_from_repo
 from utils.cofi_utils import *
 logger = logging.getLogger(__name__)
 
@@ -59,9 +60,13 @@ class CoFiBertForSequenceClassification(BertForSequenceClassification):
         if os.path.exists(pretrained_model_name_or_path):
             weights = torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"), map_location=torch.device("cpu"))
         else:
-            archive_file = hf_bucket_url(pretrained_model_name_or_path, filename="pytorch_model.bin") 
-            resolved_archive_file = cached_path(archive_file)
+            archive_file = get_file_from_repo(pretrained_model_name_or_path, filename="pytorch_model.bin")
+            # resolved_archive_file = cached_path(archive_file)
+            resolved_archive_file = archive_file
             weights = torch.load(resolved_archive_file, map_location="cpu")
+            # archive_file = hf_bucket_url(pretrained_model_name_or_path, filename="pytorch_model.bin")
+            # resolved_archive_file = cached_path(archive_file)
+            # weights = torch.load(resolved_archive_file, map_location="cpu")
 
         
         # Convert old format to new format if needed from a PyTorch state_dict

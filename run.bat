@@ -1,0 +1,12 @@
+set "TASK=MNLI"
+set "SUFFIX=sparsity0.95"
+set "EX_CATE=CoFi"
+set "PRUNING_TYPE=structured_heads+structured_mlp+hidden+layer"
+set "SPARSITY=0.95"
+set "DISTILL_LAYER_LOSS_ALPHA=0.9"
+set "DISTILL_CE_LOSS_ALPHA=0.1"
+set "LAYER_DISTILL_VERSION=4"
+set "SPARSITY_EPSILON=0.01"
+set "DISTILLATION_PATH=/mnt/lustre/sjtu/home/xc915/superb/CoFiPruning/teacher-model"
+
+call scripts\run_CoFi.bat %TASK% %SUFFIX% %EX_CATE% %PRUNING_TYPE% %SPARSITY% %DISTILLATION_PATH% %DISTILL_LAYER_LOSS_ALPHA% %DISTILL_CE_LOSS_ALPHA% %LAYER_DISTILL_VERSION% %SPARSITY_EPSILON%
